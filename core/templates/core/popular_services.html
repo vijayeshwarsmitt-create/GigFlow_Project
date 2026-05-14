@@ -106,13 +106,19 @@
                         {% endif %}
                     </div>
                     <h3 class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{{ category.name }}</h3>
-                    <p class="text-sm text-gray-500 mt-2">{{ category.jobs.count }} active gigs</p>
+                    <p class="text-sm text-gray-500 mt-2">{{ category.open_jobs_count }} active gigs</p>
                 </a>
-                {% empty %}
-                <div class="col-span-full py-12 text-center text-gray-500">
-                    No categories have been defined yet.
-                </div>
                 {% endfor %}
+
+                {% if other_jobs_count > 0 %}
+                <a href="{% url 'marketplace' %}?category=other" class="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300 text-center flex flex-col items-center justify-center">
+                    <div class="w-16 h-16 rounded-full bg-gray-50 group-hover:bg-gray-600 transition-colors flex items-center justify-center mb-4 text-gray-500 group-hover:text-white">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">Other</h3>
+                    <p class="text-sm text-gray-500 mt-2">{{ other_jobs_count }} active gigs</p>
+                </a>
+                {% endif %}
             </div>
         </section>
         

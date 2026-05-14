@@ -1,72 +1,117 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="flex-grow bg-slate-50 p-6 md:p-12 transition-all duration-300">
-    <div class="max-w-3xl mx-auto">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+    .font-outfit { font-family: 'Outfit', sans-serif; }
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .check-anim {
+        animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes scaleIn {
+        from { transform: scale(0); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .text-glow {
+        text-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    }
+</style>
+
+<div class="flex-grow bg-[#F8FAFC] p-6 md:p-12 transition-all duration-300 font-outfit">
+    <div class="max-w-3xl mx-auto py-10">
         
-        <div class="glass bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-emerald-100 text-center relative overflow-hidden">
+        <div class="glass-card p-10 md:p-16 rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] text-center relative overflow-hidden">
             
-            <!-- Background Decoration -->
-            <div class="absolute -top-24 -right-24 w-48 h-48 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
-            <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
+            <!-- Dynamic Background Shapes -->
+            <div class="absolute -top-32 -right-32 w-64 h-64 bg-emerald-100 rounded-full blur-[100px] opacity-40"></div>
+            <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-indigo-100 rounded-full blur-[100px] opacity-40"></div>
 
             <div class="relative z-10">
-                <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <!-- Premium Checkmark -->
+                <div class="check-anim w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-3xl flex items-center justify-center mx-auto mb-10 shadow-[0_10px_20px_rgba(16,185,129,0.3)] rotate-12">
+                    <svg class="w-12 h-12 -rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                 </div>
                 
-                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl mb-4">Booking Confirmed!</h1>
-                <p class="text-slate-600 text-lg max-w-lg mx-auto mb-8">Your appointment for <span class="font-bold text-slate-800">{{ booking.service.title }}</span> with <span class="font-bold text-slate-800">{{ booking.service.provider.username }}</span> is locked in.</p>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6 leading-tight">Booking Confirmed!</h1>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-xl mx-auto mb-10">
-                    <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Date & Time</p>
-                        <p class="font-bold text-slate-800 text-sm">{{ booking.booking_date|date:"F j, Y, g:i a" }}</p>
+                <div class="max-w-lg mx-auto mb-12">
+                    <p class="text-slate-500 text-xl leading-relaxed">
+                        Your appointment for <span class="text-emerald-600 font-bold text-glow">{{ booking.service.title }}</span> 
+                        is successfully scheduled with <span class="text-indigo-600 font-bold">{{ booking.service.provider.username }}</span>.
+                    </p>
+                </div>
+                
+                <!-- Info Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left max-w-xl mx-auto mb-12">
+                    <div class="bg-white/50 border border-white p-5 rounded-3xl shadow-sm">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z"></path></svg>
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Scheduled For</span>
+                        </div>
+                        <p class="font-extrabold text-slate-800 text-lg leading-tight">{{ booking.booking_date|date:"F j, Y" }}</p>
+                        <p class="text-slate-500 font-medium text-sm mt-1">{{ booking.booking_date|date:"g:i a" }}</p>
                     </div>
-                    <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Location</p>
-                        <p class="font-bold text-slate-800 text-sm flex items-center gap-1">
-                            <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            {{ booking.service.location }}
-                        </p>
+
+                    <div class="bg-white/50 border border-white p-5 rounded-3xl shadow-sm">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Location</span>
+                        </div>
+                        <p class="font-extrabold text-slate-800 text-lg leading-tight truncate">{{ booking.service.location }}</p>
+                        <p class="text-slate-500 font-medium text-sm mt-1">Get directions in dashboard</p>
                     </div>
+
                     {% if booking.notes %}
-                    <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl sm:col-span-2">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Your Notes</p>
-                        <p class="font-medium text-slate-600 text-sm italic">"{{ booking.notes }}"</p>
+                    <div class="bg-white/50 border border-white p-6 rounded-3xl shadow-sm sm:col-span-2">
+                        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2">Instructions Provided</span>
+                        <p class="text-slate-600 font-medium italic border-l-2 border-emerald-400 pl-4 py-1 leading-relaxed">
+                            "{{ booking.notes }}"
+                        </p>
                     </div>
                     {% endif %}
                 </div>
 
-                <div class="border-t border-slate-100 pt-8 pb-4">
-                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Time Until Service</h3>
-                    <div id="countdown" class="flex justify-center gap-4 text-slate-800" data-target="{{ booking.booking_date|date:'c' }}">
+                <!-- Premium Countdown -->
+                <div class="border-t border-slate-200/50 pt-12">
+                    <h3 class="text-xs font-extrabold text-slate-300 uppercase tracking-[0.2em] mb-8">Service Countdown</h3>
+                    <div id="countdown" class="flex justify-center flex-wrap gap-4 md:gap-8" data-target="{{ booking.booking_date|date:'c' }}">
                         <div class="flex flex-col items-center">
-                            <div class="w-16 h-16 bg-slate-900 text-white rounded-xl flex items-center justify-center text-2xl font-black shadow-lg" id="days">00</div>
-                            <span class="text-xs font-bold text-slate-500 mt-2 uppercase">Days</span>
+                            <div class="w-20 h-20 glass-card text-slate-900 rounded-[24px] flex items-center justify-center text-3xl font-black shadow-inner" id="days">00</div>
+                            <span class="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-wider">Days</span>
                         </div>
-                        <div class="text-2xl font-black text-slate-300 mt-3">:</div>
                         <div class="flex flex-col items-center">
-                            <div class="w-16 h-16 bg-slate-900 text-white rounded-xl flex items-center justify-center text-2xl font-black shadow-lg" id="hours">00</div>
-                            <span class="text-xs font-bold text-slate-500 mt-2 uppercase">Hours</span>
+                            <div class="w-20 h-20 glass-card text-slate-900 rounded-[24px] flex items-center justify-center text-3xl font-black shadow-inner" id="hours">00</div>
+                            <span class="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-wider">Hours</span>
                         </div>
-                        <div class="text-2xl font-black text-slate-300 mt-3">:</div>
                         <div class="flex flex-col items-center">
-                            <div class="w-16 h-16 bg-slate-900 text-white rounded-xl flex items-center justify-center text-2xl font-black shadow-lg" id="minutes">00</div>
-                            <span class="text-xs font-bold text-slate-500 mt-2 uppercase">Mins</span>
+                            <div class="w-20 h-20 glass-card text-emerald-600 rounded-[24px] flex items-center justify-center text-3xl font-black shadow-inner" id="minutes">00</div>
+                            <span class="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-wider">Minutes</span>
                         </div>
-                        <div class="text-2xl font-black text-slate-300 mt-3">:</div>
                         <div class="flex flex-col items-center">
-                            <div class="w-16 h-16 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center text-2xl font-black border border-slate-200" id="seconds">00</div>
-                            <span class="text-xs font-bold text-slate-500 mt-2 uppercase">Secs</span>
+                            <div class="w-20 h-20 glass-card text-indigo-600 rounded-[24px] flex items-center justify-center text-3xl font-black shadow-inner" id="seconds">00</div>
+                            <span class="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-wider">Seconds</span>
                         </div>
                     </div>
-                    <p id="countdown-expired" class="hidden text-emerald-600 font-bold text-lg mt-4 animate-pulse">Your service appointment is happening now!</p>
+                    <p id="countdown-expired" class="hidden text-emerald-600 font-extrabold text-2xl mt-8 animate-pulse tracking-tight">Your appointment starts now!</p>
                 </div>
                 
-                <div class="mt-8 flex justify-center gap-4">
-                    <a href="{% url 'offline_services' %}" class="px-6 py-3 rounded-xl font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">Book Another</a>
-                    <a href="{% url 'dashboard_redirect' %}" class="px-6 py-3 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">My Dashboard</a>
+                <!-- Actions -->
+                <div class="mt-16 flex flex-col sm:flex-row justify-center gap-6">
+                    <a href="{% url 'offline_services' %}" class="px-8 py-4 rounded-2xl font-extrabold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all hover:scale-105 active:scale-95">
+                        Book Another
+                    </a>
+                    <a href="{% url 'dashboard_redirect' %}" class="px-10 py-4 rounded-2xl font-extrabold bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-[0_10px_25px_rgba(0,0,0,0.15)] hover:scale-105 active:scale-95">
+                        Go to Dashboard
+                    </a>
                 </div>
             </div>
         </div>

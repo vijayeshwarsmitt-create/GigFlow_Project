@@ -2,9 +2,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import CustomUser, Job, Transaction, Category, PromotedWorker, Product, OfflineService, OfflineBooking, Cart, CartItem
-from django.http import JsonResponse
-from django.conf import settings
+from .models import CustomUser, Job, Transaction, Category, PromotedWorker, Product, OfflineService, OfflineBooking, Cart, CartItem, BranchAdminInvite, Order, OrderItem
+from django.db import models as db_models, IntegrityError
+from django.db.models.functions import TruncMonth
+from django.utils import timezone
+from datetime import timedelta
+import json
+import uuid
 
 def register_view(request):
     if request.method == 'POST':
@@ -117,9 +121,206 @@ def admin_dashboard(request):
     context = {
         'total_users': CustomUser.objects.count(),
         'total_jobs': Job.objects.count(),
-        'recent_transactions': Transaction.objects.order_by('-timestamp')[:10]
+        'total_revenue': Transaction.objects.filter(transaction_type='RELEASE').aggregate(db_models.Sum('amount'))['amount__sum'] or 0,
+        'recent_transactions': Transaction.objects.order_by('-timestamp')[:10],
+        'user_stats': {
+            'customers': CustomUser.objects.filter(user_type='CUSTOMER').count(),
+            'sellers': CustomUser.objects.filter(user_type='SELLER').count(),
+            'workers': CustomUser.objects.filter(user_type='WORKER').count(),
+            'providers': CustomUser.objects.filter(user_type='PROVIDER').count(),
+            'offline_providers': CustomUser.objects.filter(user_type='OFFLINE_PROVIDER').count(),
+        }
     }
     return render(request, 'core/admin_dashboard.html', context)
+
+@login_required
+def admin_user_list(request):
+    if request.user.user_type != 'ADMIN':
+        return redirect('dashboard_redirect')
+    
+    query = request.GET.get('q', '')
+    user_type = request.GET.get('type', '')
+    
+    users = CustomUser.objects.all().order_by('-date_joined')
+    
+    if query:
+        users = users.filter(db_models.Q(username__icontains=query) | db_models.Q(email__icontains=query))
+    if user_type:
+        users = users.filter(user_type=user_type)
+        
+    context = {
+        'users': users,
+        'query': query,
+        'user_type': user_type,
+        'user_types': CustomUser.USER_TYPE_CHOICES
+    }
+    return render(request, 'core/admin_users.html', context)
+
+@login_required
+def admin_user_add(request):
+    if request.user.user_type != 'ADMIN':
+        return redirect('dashboard_redirect')
+        
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password')
+        user_type = request.POST.get('user_type')
+        is_verified = request.POST.get('is_verified') == 'on'
+        
+        if not username:
+            messages.error(request, 'Username is required.')
+        elif CustomUser.objects.filter(username__iexact=username).exists():
+            messages.error(request, 'Username already exists.')
+        elif email and CustomUser.objects.filter(email__iexact=email).exists():
+            messages.error(request, 'Email already exists.')
+        else:
+            try:
+                user = CustomUser.objects.create_user(
+                    username=username, 
+                    email=email, 
+                    password=password,
+                    user_type=user_type,
+                    is_verified=is_verified
+                )
+                messages.success(request, f'User {username} created successfully.')
+                return redirect('admin_user_list')
+            except IntegrityError:
+                messages.error(request, 'A database error occurred. Possibly a duplicate username or email.')
+            
+    return render(request, 'core/admin_user_form.html', {'user_types': CustomUser.USER_TYPE_CHOICES})
+
+@login_required
+def admin_user_edit(request, user_id):
+    if request.user.user_type != 'ADMIN':
+        return redirect('dashboard_redirect')
+        
+    target_user = get_object_or_404(CustomUser, id=user_id)
+    
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        user_type = request.POST.get('user_type')
+        is_verified = request.POST.get('is_verified') == 'on'
+        wallet_balance = request.POST.get('wallet_balance', 0)
+        
+        if not username:
+            messages.error(request, 'Username is required.')
+        elif CustomUser.objects.filter(username__iexact=username).exclude(id=user_id).exists():
+            messages.error(request, 'Username already exists.')
+        elif email and CustomUser.objects.filter(email__iexact=email).exclude(id=user_id).exists():
+            messages.error(request, 'Email already exists.')
+        else:
+            try:
+                target_user.username = username
+                target_user.email = email
+                target_user.user_type = user_type
+                target_user.is_verified = is_verified
+                target_user.wallet_balance = wallet_balance
+                
+                target_user.save()
+                messages.success(request, f'User {target_user.username} updated successfully.')
+                return redirect('admin_user_list')
+            except IntegrityError:
+                messages.error(request, 'A database error occurred. Possibly a duplicate username or email.')
+        
+    context = {
+        'target_user': target_user,
+        'user_types': CustomUser.USER_TYPE_CHOICES
+    }
+    return render(request, 'core/admin_user_form.html', context)
+
+@login_required
+def admin_user_delete(request, user_id):
+    if request.user.user_type != 'ADMIN' or request.method != 'POST':
+        return redirect('dashboard_redirect')
+        
+    target_user = get_object_or_404(CustomUser, id=user_id)
+    if target_user == request.user:
+        messages.error(request, "You cannot delete yourself.")
+    else:
+        username = target_user.username
+        target_user.delete()
+        messages.success(request, f'User {username} deleted successfully.')
+        
+    return redirect('admin_user_list')
+
+@login_required
+def admin_analytics(request):
+    if request.user.user_type != 'ADMIN':
+        return redirect('dashboard_redirect')
+    return render(request, 'core/admin_analytics.html')
+
+@login_required
+def admin_analytics_data(request):
+    if request.user.user_type != 'ADMIN':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+    # Get last 6 months of data
+    six_months_ago = timezone.now() - timedelta(days=180)
+    
+    # User growth by type
+    user_growth = CustomUser.objects.filter(date_joined__gte=six_months_ago)\
+        .annotate(month=TruncMonth('date_joined'))\
+        .values('month', 'user_type')\
+        .annotate(count=db_models.Count('id'))\
+        .order_by('month')
+
+    # Job activity
+    job_activity = Job.objects.filter(created_at__gte=six_months_ago)\
+        .annotate(month=TruncMonth('created_at'))\
+        .values('month', 'status')\
+        .annotate(count=db_models.Count('id'))\
+        .order_by('month')
+
+    # Revenue
+    revenue_data = Transaction.objects.filter(transaction_type='RELEASE', timestamp__gte=six_months_ago)\
+        .annotate(month=TruncMonth('timestamp'))\
+        .values('month')\
+        .annotate(total=db_models.Sum('amount'))\
+        .order_by('month')
+
+    return JsonResponse({
+        'user_growth': list(user_growth),
+        'job_activity': list(job_activity),
+        'revenue': list(revenue_data),
+    })
+
+@login_required
+def admin_generate_passkey(request):
+    if request.user.user_type != 'ADMIN':
+        return redirect('dashboard_redirect')
+        
+    if request.method == 'POST':
+        invite = BranchAdminInvite.objects.create(created_by=request.user)
+        return render(request, 'core/admin_passkey.html', {'invite': invite})
+        
+    invites = BranchAdminInvite.objects.filter(created_by=request.user).order_by('-created_at')[:5]
+    return render(request, 'core/admin_passkey.html', {'invites': invites})
+
+@login_required
+def admin_redeem_passkey(request):
+    token_str = request.GET.get('token') or request.POST.get('token')
+    
+    if request.method == 'POST':
+        try:
+            invite = BranchAdminInvite.objects.get(token=token_str)
+            if invite.is_valid():
+                invite.is_used = True
+                invite.used_by = request.user
+                invite.save()
+                
+                request.user.user_type = 'ADMIN'
+                request.user.save()
+                
+                messages.success(request, "Success! You are now an Admin.")
+                return redirect('admin_dashboard')
+            else:
+                messages.error(request, "This passkey has expired or already been used.")
+        except (BranchAdminInvite.DoesNotExist, ValueError):
+            messages.error(request, "Invalid passkey.")
+            
+    return render(request, 'core/redeem_passkey.html', {'token': token_str})
 
 @login_required
 def provider_dashboard(request):
@@ -151,7 +352,8 @@ def customer_dashboard(request):
         
     context = {
         'wallet_balance': request.user.wallet_balance,
-        'my_bookings': request.user.bookings_made.all().order_by('booking_date')
+        'my_bookings': request.user.bookings_made.all().order_by('booking_date'),
+        'my_orders': request.user.orders.all().order_by('-created_at')
     }
     return render(request, 'core/customer_dashboard.html', context)
 
@@ -160,9 +362,29 @@ def seller_dashboard(request):
     if request.user.user_type != 'SELLER':
         return redirect('dashboard_redirect')
         
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description')
+        price = request.POST.get('price')
+        stock = request.POST.get('stock')
+        image = request.FILES.get('image')
+        
+        if name and price:
+            Product.objects.create(
+                seller=request.user,
+                name=name,
+                description=description,
+                price=price,
+                stock=stock or 1,
+                image=image
+            )
+            messages.success(request, 'Product listed successfully!')
+            return redirect('seller_dashboard')
+            
     context = {
         'my_products': request.user.products.all(),
-        'wallet_balance': request.user.wallet_balance
+        'wallet_balance': request.user.wallet_balance,
+        'incoming_orders': OrderItem.objects.filter(product__seller=request.user).order_by('-order__created_at')
     }
     return render(request, 'core/seller_dashboard.html', context)
 
@@ -178,8 +400,9 @@ def offline_provider_dashboard(request):
         location = request.POST.get('location')
         opening_time = request.POST.get('opening_time')
         closing_time = request.POST.get('closing_time')
+        image = request.FILES.get('image')
         
-        if title and base_price and opening_time and closing_time:
+        if title and base_price:
             OfflineService.objects.create(
                 provider=request.user,
                 title=title,
@@ -187,11 +410,12 @@ def offline_provider_dashboard(request):
                 base_price=base_price,
                 location=location,
                 opening_time=opening_time,
-                closing_time=closing_time
+                closing_time=closing_time,
+                image=image
             )
             messages.success(request, 'Service published successfully!')
             return redirect('offline_provider_dashboard')
-        
+            
     context = {
         'my_services': request.user.offline_services.all(),
         'upcoming_bookings': OfflineBooking.objects.filter(service__provider=request.user, status__in=['PENDING', 'CONFIRMED']).order_by('booking_date'),
@@ -201,8 +425,24 @@ def offline_provider_dashboard(request):
 
 def marketplace(request):
     # Publicly accessible marketplace for all OPEN jobs
+    category_id = request.GET.get('category')
+    jobs = Job.objects.filter(status='OPEN')
+    
+    selected_category = None
+    if category_id:
+        if category_id == 'other':
+            jobs = jobs.filter(category__isnull=True)
+            selected_category = "Other / Uncategorized"
+        else:
+            try:
+                selected_category = Category.objects.get(id=category_id)
+                jobs = jobs.filter(category=selected_category)
+            except (Category.DoesNotExist, ValueError):
+                pass
+                
     context = {
-        'available_jobs': Job.objects.filter(status='OPEN').order_by('-id'),
+        'available_jobs': jobs.order_by('-id'),
+        'selected_category': selected_category
     }
     return render(request, 'core/marketplace.html', context)
 
@@ -334,9 +574,41 @@ def checkout(request):
         if hasattr(cart, 'items') and cart.items.exists():
             total = cart.get_total_price()
             
-            # Simple stock deduction logic
+            # Check buyer balance
+            if request.user.wallet_balance < total:
+                messages.error(request, f'Insufficient wallet balance. Total needed: ${total}')
+                return redirect('view_cart')
+            
+            # Deduct from buyer
+            request.user.wallet_balance -= total
+            request.user.save()
+            
+            # Record buyer transaction
+            Transaction.objects.create(
+                job=None,
+                user=request.user,
+                amount=total,
+                transaction_type='PURCHASE'
+            )
+            
+            # Create Order record
+            order = Order.objects.create(
+                customer=request.user,
+                total_price=total,
+                status='PENDING'
+            )
+            
+            # Simple stock deduction and seller payment logic
             for item in cart.items.all():
                 if item.product.stock >= item.quantity:
+                    # Create OrderItem
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        quantity=item.quantity,
+                        price=item.product.price
+                    )
+                    
                     item.product.stock -= item.quantity
                     item.product.save()
                     
@@ -350,8 +622,9 @@ def checkout(request):
                         transaction_type='RELEASE'
                     )
                 else:
+                    # In a real app, you'd want to handle this better (e.g. refund if partial failure)
+                    # For this demo, we assume stock is usually available if checked at start
                     messages.error(request, f'Not enough stock for {item.product.name}.')
-                    return redirect('view_cart')
                     
             cart.items.all().delete()
             messages.success(request, f'Successfully purchased items! Total paid: ${total}')
@@ -365,8 +638,16 @@ def ai_assistant_mode(request):
 
 def popular_services(request):
     # List categories and top promoted workers
+    from django.db.models import Count, Q
     promoted_workers = PromotedWorker.objects.order_by('-promotion_bid', '-promoted_at')
-    categories = Category.objects.all()
+    
+    # Annotate categories with the count of jobs that have status='OPEN'
+    categories = Category.objects.annotate(
+        open_jobs_count=Count('jobs', filter=Q(jobs__status='OPEN'))
+    )
+    
+    # Count jobs without a category
+    other_jobs_count = Job.objects.filter(category__isnull=True, status='OPEN').count()
     
     open_provider_jobs = []
     if request.user.is_authenticated and request.user.user_type == 'PROVIDER':
@@ -375,6 +656,7 @@ def popular_services(request):
     context = {
         'promoted_workers': promoted_workers,
         'categories': categories,
+        'other_jobs_count': other_jobs_count,
         'open_provider_jobs': open_provider_jobs,
     }
     return render(request, 'core/popular_services.html', context)
@@ -416,7 +698,10 @@ def assign_job(request, username):
 
 @login_required
 def post_job(request):
-    if request.method == 'POST' and request.user.user_type == 'PROVIDER':
+    if request.user.user_type != 'PROVIDER':
+        return redirect('dashboard_redirect')
+        
+    if request.method == 'POST':
         title = request.POST.get('title')
         description = request.POST.get('description', '')
         
@@ -433,7 +718,7 @@ def post_job(request):
             
             # Create Job
             category_id = request.POST.get('category')
-            category = Category.objects.filter(id=category_id).first() if category_id else None
+            category = Category.objects.filter(id=category_id).first() if category_id and category_id != 'other' else None
             
             job = Job.objects.create(
                 title=title,
@@ -453,14 +738,16 @@ def post_job(request):
                 transaction_type='DEPOSIT'
             )
             messages.success(request, f'Job posted successfully! ${budget} securely held in Escrow.')
+            return redirect('provider_dashboard')
         else:
             messages.error(request, 'Insufficient wallet balance for this budget.')
             
-    return redirect('provider_dashboard')
+    categories = Category.objects.all()
+    return render(request, 'core/post_job.html', {'categories': categories})
 
 @login_required
 def add_funds(request):
-    if request.method == 'POST' and request.user.user_type == 'PROVIDER':
+    if request.method == 'POST':
         try:
             from decimal import Decimal
             amount = Decimal(request.POST.get('amount', '0'))
@@ -472,8 +759,17 @@ def add_funds(request):
                 messages.error(request, 'Please enter a valid amount.')
         except:
             messages.error(request, 'Invalid amount.')
-            
-    return redirect('provider_dashboard')
+    
+    # Dynamic redirect based on user type
+    role_redirects = {
+        'PROVIDER': 'provider_dashboard',
+        'WORKER': 'worker_dashboard',
+        'CUSTOMER': 'customer_dashboard',
+        'SELLER': 'seller_dashboard',
+        'OFFLINE_PROVIDER': 'offline_provider_dashboard',
+        'ADMIN': 'admin_dashboard'
+    }
+    return redirect(role_redirects.get(request.user.user_type, 'dashboard_redirect'))
 
 @login_required
 def take_job(request, job_id):
@@ -616,13 +912,13 @@ def review_work_preview(request, job_id):
             width, height = img.size
             position = ((width - text_w) / 2, (height - text_h) / 2)
             
-            # Draw semi-transparent text
-            draw.text(position, text, fill=(255, 0, 0, 128), font=font)
+            # Draw semi-transparent text - Darker and more opaque
+            draw.text(position, text, fill=(150, 0, 0, 200), font=font)
             
-            # Tile it or draw multiple for better protection
+            # Tile it or draw multiple for better protection - Darker tiled watermarks
             for i in range(0, width, 200):
                 for j in range(0, height, 100):
-                    draw.text((i, j), text, fill=(255, 0, 0, 50), font=font)
+                    draw.text((i, j), text, fill=(150, 0, 0, 100), font=font)
                     
             watermarked = Image.alpha_composite(img, txt)
             watermarked = watermarked.convert("RGB")

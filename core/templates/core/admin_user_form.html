@@ -1,0 +1,85 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="flex-grow bg-[#0f172a] text-white p-6 md:p-12 transition-all duration-300 pb-24">
+    <div class="max-w-3xl mx-auto">
+        
+        <!-- Header -->
+        <div class="flex items-center mb-10 space-x-4">
+            <a href="{% url 'admin_user_list' %}" class="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors border border-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-200 to-gray-500">
+                    {% if target_user %}Edit User: {{ target_user.username }}{% else %}Add New User{% endif %}
+                </h1>
+                <p class="text-gray-400 mt-1">Configure user account details and permissions</p>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <div class="glass-dark p-8 rounded-2xl border border-gray-800 shadow-xl">
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-400">Username</label>
+                        <input type="text" name="username" value="{{ target_user.username }}" required class="w-full bg-[#1e293b] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-400">Email Address</label>
+                        <input type="email" name="email" value="{{ target_user.email }}" required class="w-full bg-[#1e293b] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                    </div>
+                </div>
+
+                {% if not target_user %}
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Temporary Password</label>
+                    <input type="password" name="password" required class="w-full bg-[#1e293b] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                    <p class="text-xs text-gray-500">The user can change this after their first login.</p>
+                </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-400">User Role / Type</label>
+                        <select name="user_type" class="w-full bg-[#1e293b] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                            {% for code, name in user_types %}
+                                <option value="{{ code }}" {% if target_user.user_type == code %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-400">Wallet Balance ($)</label>
+                        <input type="number" step="0.01" name="wallet_balance" value="{{ target_user.wallet_balance|default:'0.00' }}" class="w-full bg-[#1e293b] border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 p-4 bg-gray-800/20 rounded-xl border border-gray-800/50">
+                    <input type="checkbox" name="is_verified" id="is_verified" {% if target_user.is_verified %}checked{% endif %} class="w-5 h-5 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-blue-500/50">
+                    <label for="is_verified" class="text-sm font-medium text-gray-300">Mark as Verified User (Shows blue checkmark)</label>
+                </div>
+
+                <div class="pt-6 border-t border-gray-800 flex justify-end space-x-4">
+                    <a href="{% url 'admin_user_list' %}" class="px-6 py-3 rounded-xl text-gray-400 hover:text-white transition-colors">Cancel</a>
+                    <button type="submit" class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition-all transform active:scale-95">
+                        {% if target_user %}Save Changes{% else %}Create User Account{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    body { background-color: #0f172a !important; }
+    .glass-dark {
+        background: rgba(30, 41, 59, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+</style>
+{% endblock %}

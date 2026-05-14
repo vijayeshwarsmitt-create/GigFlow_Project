@@ -18,11 +18,33 @@
                 </div>
                 <form action="{% url 'add_funds' %}" method="POST" class="flex flex-col space-y-2">
                     {% csrf_token %}
-                    <div class="flex space-x-2">
-                        <input type="number" name="amount" min="1" required class="w-20 pl-2 pr-1 py-1 text-sm border-slate-200 rounded-md bg-slate-50 border outline-none focus:border-indigo-500" placeholder="$">
-                        <button type="submit" class="text-xs bg-indigo-600 text-white font-bold px-3 py-1 rounded-md hover:bg-indigo-700 transition-colors shadow">Add</button>
+                    <div class="flex flex-col space-y-2">
+                        <div class="flex space-x-2">
+                            <div class="relative flex-grow">
+                                <span class="absolute left-2 top-1 text-xs font-bold text-slate-400">$</span>
+                                <input type="number" id="funds_usd" name="amount" min="1" step="0.01" required class="w-24 pl-5 pr-1 py-1 text-sm border-slate-200 rounded-md bg-slate-50 border outline-none focus:border-indigo-500 font-bold" placeholder="USD" oninput="syncFunds('usd')">
+                            </div>
+                            <div class="relative flex-grow">
+                                <span class="absolute left-2 top-1 text-xs font-bold text-slate-400">₹</span>
+                                <input type="number" id="funds_inr" step="0.01" min="1" class="w-24 pl-5 pr-1 py-1 text-sm border-slate-200 rounded-md bg-indigo-50 border outline-none focus:border-indigo-500 font-bold text-indigo-700" placeholder="INR" oninput="syncFunds('inr')">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full text-xs bg-indigo-600 text-white font-bold py-1.5 rounded-md hover:bg-indigo-700 transition-colors shadow">Add Money</button>
                     </div>
                 </form>
+
+                <script>
+                    const FUND_RATE = 84.0;
+                    function syncFunds(source) {
+                        const usdInput = document.getElementById('funds_usd');
+                        const inrInput = document.getElementById('funds_inr');
+                        if (source === 'usd') {
+                            inrInput.value = (parseFloat(usdInput.value) * FUND_RATE).toFixed(2);
+                        } else {
+                            usdInput.value = (parseFloat(inrInput.value) / FUND_RATE).toFixed(2);
+                        }
+                    }
+                </script>
             </div>
         </div>
 
@@ -93,16 +115,51 @@
                 </div>
             </div>
 
-            <!-- Product Orders (Placeholder) -->
+            <!-- Product Orders -->
             <div class="space-y-6">
                 <div class="flex justify-between items-center border-b border-slate-200 pb-2">
                     <h2 class="text-xl font-bold text-slate-800">My Product Orders</h2>
-                    <a href="#" class="text-sm font-bold text-indigo-600 hover:underline">Shop Products</a>
+                    <a href="{% url 'products' %}" class="text-sm font-bold text-indigo-600 hover:underline">Shop More</a>
                 </div>
                 
-                <div class="text-center py-12 glass bg-white rounded-2xl border border-slate-200">
-                    <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                    <p class="text-slate-500">You haven't ordered any physical products yet.</p>
+                <div class="space-y-4">
+                    {% for order in my_orders %}
+                    <div class="glass bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center mb-3">
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 uppercase">Order #{{ order.id }}</span>
+                                <p class="text-xs text-slate-500">{{ order.created_at|date:"M j, Y" }}</p>
+                            </div>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full 
+                                {% if order.status == 'PENDING' %}bg-yellow-100 text-yellow-700
+                                {% elif order.status == 'SHIPPED' %}bg-blue-100 text-blue-700
+                                {% elif order.status == 'DELIVERED' %}bg-green-100 text-green-700
+                                {% else %}bg-slate-100 text-slate-500{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-2 mb-3">
+                            {% for item in order.items.all %}
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-600">{{ item.quantity }}x {{ item.product.name|default:"Deleted Product" }}</span>
+                                <span class="font-medium text-slate-800">{{ item.get_cost|dual_currency }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="flex justify-between items-center pt-3 border-t border-slate-50">
+                            <span class="text-sm font-bold text-slate-800">Total Paid</span>
+                            <span class="text-lg font-black text-indigo-600">{{ order.total_price|dual_currency }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-12 glass bg-white rounded-2xl border border-slate-200">
+                        <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        <p class="text-slate-500">You haven't ordered any physical products yet.</p>
+                        <a href="{% url 'products' %}" class="inline-block mt-4 bg-indigo-50 text-indigo-600 font-bold px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors text-sm">Shop Products</a>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             

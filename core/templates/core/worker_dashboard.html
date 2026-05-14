@@ -12,14 +12,47 @@
                 <p class="text-emerald-700 mt-1">Find gigs, submit work, and earn.</p>
             </div>
             
-            <div class="glass bg-white/60 p-3 rounded-xl shadow-sm border border-emerald-100 flex items-center space-x-4">
-                <div>
-                     <p class="text-xs text-emerald-600 font-bold uppercase tracking-wider">Earnings Balance</p>
-                     <p class="text-xl font-bold text-emerald-900">{{ wallet_balance|dual_currency }}</p>
+            <div class="glass bg-white/60 p-4 rounded-xl shadow-sm border border-emerald-100 flex flex-col items-center space-y-3 min-w-[320px]">
+                <div class="flex items-center justify-between w-full">
+                    <div>
+                         <p class="text-xs text-emerald-600 font-bold uppercase tracking-wider">Earnings Balance</p>
+                         <p class="text-xl font-bold text-emerald-900">{{ wallet_balance|dual_currency }}</p>
+                    </div>
+                    <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md transition-all hover:scale-105 active:scale-95">
+                        Withdraw
+                    </button>
                 </div>
-                <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md transition-transform hover:-translate-y-0.5">
-                    Withdraw
-                </button>
+                
+                <!-- Add Funds for Promotion -->
+                <div class="w-full pt-3 border-t border-emerald-100/50">
+                    <form action="{% url 'add_funds' %}" method="POST" class="flex flex-col space-y-2">
+                        {% csrf_token %}
+                        <div class="flex space-x-2">
+                            <div class="relative flex-1">
+                                <span class="absolute left-2 top-1 text-[10px] font-bold text-emerald-400">$</span>
+                                <input type="number" id="funds_usd" name="amount" min="1" step="0.01" required class="w-full pl-5 pr-1 py-1 text-xs border-emerald-100 rounded bg-white/80 border outline-none focus:border-emerald-500 font-bold" placeholder="USD" oninput="syncFunds('usd')">
+                            </div>
+                            <div class="relative flex-1">
+                                <span class="absolute left-2 top-1 text-[10px] font-bold text-emerald-400">₹</span>
+                                <input type="number" id="funds_inr" step="0.01" min="1" class="w-full pl-5 pr-1 py-1 text-xs border-emerald-100 rounded bg-emerald-50/50 border outline-none focus:border-emerald-500 font-bold text-emerald-700" placeholder="INR" oninput="syncFunds('inr')">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full text-[10px] bg-emerald-700 text-white font-bold py-1.5 rounded-md hover:bg-emerald-800 transition-colors shadow-sm uppercase tracking-tighter">Refill for Promotion</button>
+                    </form>
+                    <script>
+                        const FUND_RATE = 84.0;
+                        function syncFunds(source) {
+                            const usdInput = document.getElementById('funds_usd');
+                            const inrInput = document.getElementById('funds_inr');
+                            if (!usdInput || !inrInput) return;
+                            if (source === 'usd') {
+                                inrInput.value = (parseFloat(usdInput.value) * FUND_RATE).toFixed(2);
+                            } else {
+                                usdInput.value = (parseFloat(inrInput.value) / FUND_RATE).toFixed(2);
+                            }
+                        }
+                    </script>
+                </div>
             </div>
             </div>
         </div>
@@ -39,14 +72,29 @@
                     
                     <form method="POST" action="{% url 'promote_worker' %}" class="space-y-4">
                         {% csrf_token %}
-                        <div>
-                            <label class="block text-xs font-bold text-emerald-800 uppercase tracking-wide mb-1">Bid Amount ($)</label>
-                            <input type="number" name="bid_amount" step="0.01" min="1.00" required class="w-full px-4 py-2 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-emerald-50 text-emerald-900 font-bold" placeholder="5.00">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="relative">
+                                <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-1">Bid (USD $)</label>
+                                <input type="number" id="bid_usd" name="bid_amount" step="0.01" min="1.00" required class="w-full pl-3 pr-1 py-2 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-emerald-50 text-emerald-900 font-bold" placeholder="5.00" oninput="syncPromote('usd')">
+                            </div>
+                            <div class="relative">
+                                <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-1">Bid (INR ₹)</label>
+                                <input type="number" id="bid_inr" step="0.01" min="1.00" class="w-full pl-3 pr-1 py-2 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-emerald-50 text-emerald-900 font-bold" placeholder="420.00" oninput="syncPromote('inr')">
+                            </div>
                         </div>
                         <button type="submit" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-3 rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 mt-2">
                             Place Bid & Promote
                         </button>
                     </form>
+                    <script>
+                        const RATE = 84.0;
+                        function syncPromote(source) {
+                            const usd = document.getElementById('bid_usd');
+                            const inr = document.getElementById('bid_inr');
+                            if (source === 'usd') inr.value = (parseFloat(usd.value) * RATE).toFixed(2);
+                            else usd.value = (parseFloat(inr.value) / RATE).toFixed(2);
+                        }
+                    </script>
                 </div>
             </div>
 
